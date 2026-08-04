@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Pilih Amplop Multiplayer Deluxe</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounceShort 0.5s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        bounceShort: {
+                            '0%': { transform: 'translateY(0)' },
+                            '100%': { transform: 'translateY(-8px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+
+        .envelope-card {
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .envelope-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .envelope-flap {
+            transform-origin: top;
+            transition: transform 0.4s ease-in-out;
+        }
+
+        .envelope-card.open .envelope-flap {
+            transform: rotateX(180deg);
+        }
+
+        .gold-gradient-bg {
+            background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+        }
+
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-x-hidden selection:bg-amber-500 selection:text-slate-950">
+
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl shadow-lg shadow-amber-500/10">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide gold-gradient-text">Pilih Amplop Multiplayer</h1>
+                    <p class="text-xs text-slate-400">Main Bersama • Bebas Atur Zong & Ronde</p>
+                </div>
+            </div>
+
+            <!-- Header Controls: Audio & Settings -->
+            <div class="flex items-center gap-2">
+                <button id="btn-bgm-toggle" onclick="toggleBGM()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center gap-1.5">
+                    <i id="bgm-icon" class="fa-solid fa-music text-amber-400"></i>
+                    <span id="bgm-text" class="hidden sm:inline">Lagu: ON</span>
+                </button>
+                <button id="btn-sound-toggle" onclick="toggleSound()" class="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center gap-1.5">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                    <span id="sound-text" class="hidden sm:inline">SFX: ON</span>
+                </button>
+                <button onclick="openSetupModal()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1.5 shadow-md shadow-amber-500/20">
+                    <i class="fa-solid fa-gear"></i> Setup Game
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1 flex flex-col justify-between">
+        
+        <!-- Game Status & Round Bar -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 mb-6 backdrop-blur shadow-xl">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <!-- Round Badge -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-flag-checkered text-amber-400"></i>
+                        <span class="text-xs text-slate-400">Ronde:</span>
+                        <span id="stat-round-display" class="text-sm font-black text-amber-400">1 / 3</span>
+                    </div>
+                    <div class="bg-purple-500/10 border border-purple-500/30 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-skull-crossbones text-purple-400"></i>
+                        <span class="text-xs text-slate-400">Zong:</span>
+                        <span id="stat-zong-display" class="text-sm font-black text-purple-400">2 Amplop</span>
+                    </div>
+                </div>
+
+                <!-- Turn Indicator Banner -->
+                <div class="flex items-center gap-2 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+                    <span class="text-xs text-slate-400">Giliran:</span>
+                    <span id="active-player-banner" class="text-sm font-extrabold text-amber-400 animate-pulse">Pemain 1</span>
+                    <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/30 font-semibold">Min 5 Koin 🪙</span>
+                </div>
+            </div>
+
+            <!-- Player Scoreboard Cards Container -->
+            <div id="players-scoreboard" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mt-4">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- Banner Message -->
+        <div class="text-center mb-6">
+            <p id="game-status" class="text-sm md:text-base text-amber-300 font-medium tracking-wide">
+                ✨ Klik amplop untuk memilih! Taruhan: <span class="font-bold text-amber-400">5 Koin</span> per amplop. ✨
+            </p>
+        </div>
+
+        <div id="envelope-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto w-full mb-8">
+            <!-- Dynamic Envelopes generated via JS -->
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-4">
+            <button id="btn-next-round" onclick="startNextRound()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition transform active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-forward"></i> Ronde Berikutnya
+            </button>
+            <button onclick="revealAllEnvelopes()" id="btn-reveal-all" disabled class="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 font-semibold border border-slate-700 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-eye"></i> Intip Semua
+            </button>
+            <button onclick="openSetupModal()" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold transition flex items-center gap-2">
+                <i class="fa-solid fa-rotate-left"></i> Reset Match Baru
+            </button>
+        </div>
+
+        <!-- History Log Section -->
+        <div class="mt-8 max-w-2xl mx-auto w-full bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left"></i> Catatan Putaran Pemain
+            </h3>
+            <div id="history-list" class="space-y-2 text-xs text-slate-300 max-h-32 overflow-y-auto pr-1">
+                <p class="text-slate-500 italic text-center py-2">Belum ada riwayat permainan.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Setup Game Modal (Multiplayer, Zong, Rounds Configuration) -->
+    <div id="setup-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-black text-amber-400 mb-1 flex items-center gap-2">
+                <i class="fa-solid fa-sliders"></i> Pengaturan Game Baru
+            </h3>
+            <p class="text-xs text-slate-400 mb-5">Atur jumlah pemain, jumlah amplop Zong, dan total ronde permainan.</p>
+
+            <!-- Number of Players -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    1. Jumlah Pemain (1 - 6 Orang):
+                </label>
+                <div class="grid grid-cols-6 gap-2">
+                    <button type="button" onclick="setPlayerCount(1)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-count="1">1</button>
+                    <button type="button" onclick="setPlayerCount(2)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300" data-count="2">2</button>
+                    <button type="button" onclick="setPlayerCount(3)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-count="3">3</button>
+                    <button type="button" onclick="setPlayerCount(4)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-count="4">4</button>
+                    <button type="button" onclick="setPlayerCount(5)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-count="5">5</button>
+                    <button type="button" onclick="setPlayerCount(6)" class="player-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-count="6">6</button>
+                </div>
+            </div>
+
+            <!-- Player Names Inputs -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Nama Pemain:</label>
+                <div id="player-inputs-container" class="space-y-2">
+                    <!-- Dynamic inputs generated -->
+                </div>
+            </div>
+
+            <!-- Number of ZONG Envelopes -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    2. Jumlah Amplop Zong (1 - 5 Zong):
+                </label>
+                <div class="grid grid-cols-5 gap-2">
+                    <button type="button" onclick="setZongCount(1)" class="zong-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-zong="1">1 Zong</button>
+                    <button type="button" onclick="setZongCount(2)" class="zong-count-btn py-2 rounded-xl text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300" data-zong="2">2 Zong</button>
+                    <button type="button" onclick="setZongCount(3)" class="zong-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-zong="3">3 Zong</button>
+                    <button type="button" onclick="setZongCount(4)" class="zong-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-zong="4">4 Zong</button>
+                    <button type="button" onclick="setZongCount(5)" class="zong-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-zong="5">5 Zong</button>
+                </div>
+            </div>
+
+            <!-- Number of Rounds -->
+            <div class="mb-6">
+                <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    3. Jumlah Ronde (1 - 5 Ronde):
+                </label>
+                <div class="grid grid-cols-5 gap-2">
+                    <button type="button" onclick="setTotalRounds(1)" class="round-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-round="1">1 Ronde</button>
+                    <button type="button" onclick="setTotalRounds(2)" class="round-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-round="2">2 Ronde</button>
+                    <button type="button" onclick="setTotalRounds(3)" class="round-count-btn py-2 rounded-xl text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300" data-round="3">3 Ronde</button>
+                    <button type="button" onclick="setTotalRounds(4)" class="round-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-round="4">4 Ronde</button>
+                    <button type="button" onclick="setTotalRounds(5)" class="round-count-btn py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-800 text-slate-300" data-round="5">5 Ronde</button>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button type="button" onclick="closeSetupModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800">Batal</button>
+                <button type="button" onclick="startNewMatch()" class="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20">Mulai Permainan 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Match Winner Modal -->
+    <div id="winner-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border-2 border-amber-500/60 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl relative animate-bounce-short">
+            <div class="w-20 h-20 bg-amber-500/20 border border-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl text-amber-400">
+                👑
+            </div>
+            <h2 class="text-2xl font-black gold-gradient-text mb-1">PERMAINAN SELESAI!</h2>
+            <p class="text-xs text-slate-400 mb-4">Pemenang Utama Pertandingan Ini Adalah:</p>
+            
+            <div class="bg-slate-950 border border-amber-500/40 rounded-2xl p-4 mb-6">
+                <p id="winner-name" class="text-2xl font-black text-amber-300 mb-1">Pemain 1</p>
+                <p id="winner-score" class="text-sm font-bold text-emerald-400">Total: 150 Koin 🪙</p>
+            </div>
+
+            <button onclick="closeWinnerModal(); openSetupModal();" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition">
+                Main Match Baru 🎉
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-3 text-center text-xs text-slate-500">
+        <p>Game Pilih Amplop Multiplayer • Fitur Koin, Zong 1-5 & Musik Synthesizer</p>
+    </footer>
+
+    <script>
+        /* Audio Synthesizer (SFX + Procedural BGM Music Loop via Web Audio API) */
+        let audioCtx = null;
+        let soundEnabled = true;
+        let bgmEnabled = true;
+        let bgmInterval = null;
+        let bgmNoteIndex = 0;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Catchy Procedural BGM Melody Sequence
+        const bgmNotes = [
+            261.63, 329.63, 392.00, 523.25, // C4, E4, G4, C5
+            293.66, 349.23, 440.00, 587.33, // D4, F4, A4, D5
+            329.63, 392.00, 493.88, 659.25, // E4, G4, B4, E5
+            349.23, 440.00, 523.25, 698.46  // F4, A4, C5, F5
+        ];
+
+        function playBGMStep() {
+            if (!bgmEnabled || !audioCtx) return;
+            const now = audioCtx.currentTime;
+            const freq = bgmNotes[bgmNoteIndex % bgmNotes.length];
+            
+            // Bass line note
+            const bassOsc = audioCtx.createOscillator();
+            const bassGain = audioCtx.createGain();
+            bassOsc.type = 'triangle';
+            bassOsc.frequency.setValueAtTime(freq / 2, now);
+            bassGain.gain.setValueAtTime(0.03, now);
+            bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            bassOsc.connect(bassGain);
+            bassGain.connect(audioCtx.destination);
+            bassOsc.start(now);
+            bassOsc.stop(now + 0.2);
+
+            // Arpeggio Lead
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.18);
+
+            bgmNoteIndex++;
+        }
+
+        function startBGM() {
+            initAudio();
+            if (bgmInterval) clearInterval(bgmInterval);
+            bgmInterval = setInterval(playBGMStep, 200); // 150 BPM arpeggio
+        }
+
+        function stopBGM() {
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        function toggleBGM() {
+            bgmEnabled = !bgmEnabled;
+            const icon = document.getElementById('bgm-icon');
+            const text = document.getElementById('bgm-text');
+            if (bgmEnabled) {
+                icon.className = 'fa-solid fa-music text-amber-400';
+                text.innerText = 'Lagu: ON';
+                startBGM();
+            } else {
+                icon.className = 'fa-solid fa-music-slash text-slate-500';
+                text.innerText = 'Lagu: OFF';
+                stopBGM();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(450, now);
+                osc.frequency.exponentialRampToValueAtTime(850, now + 0.08);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } 
+            else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + (i * 0.08));
+                    gain.gain.setValueAtTime(0.2, now + (i * 0.08));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.08) + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + (i * 0.08));
+                    osc.stop(now + (i * 0.08) + 0.2);
+                });
+            } 
+            else if (type === 'jackpot') {
+                const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.51];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + (i * 0.07));
+                    gain.gain.setValueAtTime(0.25, now + (i * 0.07));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.07) + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + (i * 0.07));
+                    osc.stop(now + (i * 0.07) + 0.35);
+                });
+            }
+            else if (type === 'zonk') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.4);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const text = document.getElementById('sound-text');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-emerald-400';
+                text.innerText = 'SFX: ON';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                text.innerText = 'SFX: OFF';
+            }
+        }
+
+        let numPlayers = 2;
+        let numZong = 2;
+        let totalRounds = 3;
+        let currentRound = 1;
+        let currentPlayerIndex = 0;
+        
+        let players = []; // [{ id, name, coins }]
+        let currentDeck = [];
+        let openedEnvelopesThisTurn = 0;
+        let historyLogs = [];
+
+        const MIN_COIN_ENTRY = 5;
+
+        function setPlayerCount(count) {
+            numPlayers = count;
+            document.querySelectorAll('.player-count-btn').forEach(btn => {
+                const isSelected = parseInt(btn.dataset.count) === count;
+                btn.className = `player-count-btn py-2 rounded-xl text-xs font-bold border ${isSelected ? 'border-amber-500 bg-amber-500/20 text-amber-300' : 'border-slate-700 bg-slate-800 text-slate-300'}`;
+            });
+            renderPlayerNameInputs();
+        }
+
+        function renderPlayerNameInputs() {
+            const container = document.getElementById('player-inputs-container');
+            container.innerHTML = '';
+            for (let i = 0; i < numPlayers; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = `Pemain ${i + 1}`;
+                input.id = `input-player-name-${i}`;
+                input.className = 'w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500';
+                container.appendChild(input);
+            }
+        }
+
+        function setZongCount(count) {
+            numZong = count;
+            document.querySelectorAll('.zong-count-btn').forEach(btn => {
+                const isSelected = parseInt(btn.dataset.zong) === count;
+                btn.className = `zong-count-btn py-2 rounded-xl text-xs font-bold border ${isSelected ? 'border-amber-500 bg-amber-500/20 text-amber-300' : 'border-slate-700 bg-slate-800 text-slate-300'}`;
+            });
+        }
+
+        function setTotalRounds(count) {
+            totalRounds = count;
+            document.querySelectorAll('.round-count-btn').forEach(btn => {
+                const isSelected = parseInt(btn.dataset.round) === count;
+                btn.className = `round-count-btn py-2 rounded-xl text-xs font-bold border ${isSelected ? 'border-amber-500 bg-amber-500/20 text-amber-300' : 'border-slate-700 bg-slate-800 text-slate-300'}`;
+            });
+        }
+
+        function openSetupModal() {
+            playSound('click');
+            document.getElementById('setup-modal').classList.remove('hidden');
+        }
+
+        function closeSetupModal() {
+            playSound('click');
+            document.getElementById('setup-modal').classList.add('hidden');
+        }
+
+        function startNewMatch() {
+            playSound('click');
+            if (bgmEnabled && !bgmInterval) startBGM();
+
+            players = [];
+            for (let i = 0; i < numPlayers; i++) {
+                const inputEl = document.getElementById(`input-player-name-${i}`);
+                const name = inputEl && inputEl.value.trim() ? inputEl.value.trim() : `Pemain ${i + 1}`;
+                players.push({
+                    id: i,
+                    name: name,
+                    coins: 50 // Standard starting coins balance
+                });
+            }
+
+            currentRound = 1;
+            currentPlayerIndex = 0;
+            historyLogs = [];
+            
+            closeSetupModal();
+            initRoundBoard();
+        }
+
+        function generatePrizeDeck() {
+            let deck = [];
+
+            // Add Requested Zong Envelopes (1 to 5)
+            for (let i = 0; i < numZong; i++) {
+                deck.push({ label: "ZONG ❌", value: 0, type: "zonk" });
+            }
+
+            // Reward Envelopes (Minimum Reward 5 Coins up to 100 Coins Jackpot)
+            const rewardsPool = [
+                { label: "+5 Koin 🪙", value: 5, type: "win" },
+                { label: "+10 Koin 🪙", value: 10, type: "win" },
+                { label: "+15 Koin 💰", value: 15, type: "win" },
+                { label: "+25 Koin 💰", value: 25, type: "win" },
+                { label: "+50 Koin 🌟", value: 50, type: "jackpot" },
+                { label: "+100 Koin 🎉", value: 100, type: "jackpot" }
+            ];
+
+            // Always ensure total envelopes is at least (numZong + 4) for a good grid
+            const targetTotalEnvelopes = Math.max(numZong + 4, 8);
+            const remainingToFill = targetTotalEnvelopes - numZong;
+
+            for (let i = 0; i < remainingToFill; i++) {
+                const randomReward = rewardsPool[i % rewardsPool.length];
+                deck.push({ ...randomReward });
+            }
+
+            // Fisher-Yates Shuffle
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+
+            return deck;
+        }
+
+        function initRoundBoard() {
+            document.getElementById('stat-round-display').innerText = `${currentRound} / ${totalRounds}`;
+            document.getElementById('stat-zong-display').innerText = `${numZong} Amplop`;
+            document.getElementById('btn-reveal-all').disabled = true;
+
+            currentDeck = generatePrizeDeck();
+            renderScoreboard();
+            updateTurnBanner();
+
+            const gridContainer = document.getElementById('envelope-grid');
+            gridContainer.innerHTML = '';
+
+            currentDeck.forEach((prizeItem, index) => {
+                const envEl = document.createElement('div');
+                envEl.className = 'perspective-1000 cursor-pointer select-none group';
+                envEl.onclick = () => pickEnvelope(index);
+
+                envEl.innerHTML = `
+                    <div id="env-card-${index}" class="envelope-card relative w-full h-40 sm:h-48 bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-xl border-2 border-amber-500/40 p-4 flex flex-col items-center justify-center text-center transition-all duration-300 group-hover:scale-105 group-hover:shadow-amber-500/20">
+                        <div class="envelope-flap absolute top-0 left-0 right-0 h-14 bg-red-700 rounded-t-2xl border-b border-red-900/40 flex justify-center items-start pt-1">
+                            <div class="w-6 h-6 rounded-full bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-amber-300 text-xs">
+                                🧧
+                            </div>
+                        </div>
+
+                        <div class="mt-3 z-10 flex flex-col items-center gap-1">
+                            <div class="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 text-xl group-hover:rotate-12 transition transform">
+                                ✉️
+                            </div>
+                            <span class="text-xs font-bold tracking-wider text-amber-200">Amplop #${index + 1}</span>
+                            <span class="text-[10px] bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full font-bold">Bayar 5 Koin 🪙</span>
+                        </div>
+
+                        <div id="env-result-${index}" class="absolute inset-0 bg-slate-900 rounded-2xl border-2 border-amber-500 p-3 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                            <span class="text-[10px] font-semibold text-slate-400 mb-1">Isi Amplop:</span>
+                            <span id="env-prize-text-${index}" class="text-sm sm:text-base font-black text-amber-400 leading-tight"></span>
+                        </div>
+                    </div>
+                `;
+                gridContainer.appendChild(envEl);
+            });
+        }
+
+        function pickEnvelope(index) {
+            const activePlayer = players[currentPlayerIndex];
+
+            // Check if envelope already opened
+            const resultEl = document.getElementById(`env-result-${index}`);
+            if (resultEl.classList.contains('opacity-100')) return;
+
+            // Check if player has minimum 5 coins
+            if (activePlayer.coins < MIN_COIN_ENTRY) {
+                document.getElementById('game-status').innerText = `⚠️ ${activePlayer.name} tidak memiliki cukup koin (Min 5 Koin)! Giliran dilewati.`;
+                document.getElementById('game-status').className = "text-sm md:text-base text-red-400 font-bold";
+                nextPlayerTurn();
+                return;
+            }
+
+            playSound('click');
+
+            // Deduct 5 Coins entry fee
+            activePlayer.coins -= MIN_COIN_ENTRY;
+
+            const prize = currentDeck[index];
+            const cardEl = document.getElementById(`env-card-${index}`);
+            const prizeTextEl = document.getElementById(`env-prize-text-${index}`);
+
+            cardEl.classList.add('open');
+
+            setTimeout(() => {
+                resultEl.classList.remove('opacity-0');
+                resultEl.classList.add('opacity-100');
+                prizeTextEl.innerText = prize.label;
+
+                const statusEl = document.getElementById('game-status');
+
+                if (prize.type === 'zonk') {
+                    playSound('zonk');
+                    resultEl.classList.add('border-slate-600', 'bg-slate-950');
+                    prizeTextEl.className = "text-sm sm:text-base font-black text-slate-400";
+                    statusEl.innerText = `😭 ${activePlayer.name} kena ZONG! Koin taruhan 5 koin hangus.`;
+                    statusEl.className = "text-sm md:text-base text-red-400 font-bold";
+                } else if (prize.type === 'jackpot') {
+                    playSound('jackpot');
+                    triggerConfetti();
+                    resultEl.classList.add('border-amber-400', 'bg-gradient-to-b', 'from-amber-950', 'to-slate-900');
+                    prizeTextEl.className = "text-sm sm:text-base font-black gold-gradient-text animate-bounce-short";
+                    
+                    activePlayer.coins += prize.value;
+                    statusEl.innerText = `🎉 JACKPOT! ${activePlayer.name} mendapatkan ${prize.label}!`;
+                    statusEl.className = "text-sm md:text-base text-amber-300 font-black animate-pulse";
+                } else {
+                    playSound('win');
+                    resultEl.classList.add('border-emerald-500', 'bg-gradient-to-b', 'from-emerald-950', 'to-slate-900');
+                    prizeTextEl.className = "text-sm sm:text-base font-black text-emerald-400";
+                    
+                    activePlayer.coins += prize.value;
+                    statusEl.innerText = `💰 Hore! ${activePlayer.name} mendapatkan ${prize.label}!`;
+                    statusEl.className = "text-sm md:text-base text-emerald-400 font-bold";
+                }
+
+                renderScoreboard();
+                addHistoryLog(activePlayer.name, prize.label, index + 1);
+                document.getElementById('btn-reveal-all').disabled = false;
+
+                // Move turn to next player after a short pause
+                setTimeout(() => {
+                    nextPlayerTurn();
+                }, 1200);
+
+            }, 250);
+        }
+
+        function nextPlayerTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            updateTurnBanner();
+            renderScoreboard();
+        }
+
+        function updateTurnBanner() {
+            const activePlayer = players[currentPlayerIndex];
+            const banner = document.getElementById('active-player-banner');
+            banner.innerText = activePlayer ? activePlayer.name : 'Pemain 1';
+        }
+
+        function renderScoreboard() {
+            const container = document.getElementById('players-scoreboard');
+            container.innerHTML = '';
+
+            players.forEach((player, idx) => {
+                const isActive = idx === currentPlayerIndex;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center ${
+                    isActive 
+                        ? 'bg-amber-500/20 border-amber-400 shadow-lg shadow-amber-500/20 scale-105' 
+                        : 'bg-slate-950/60 border-slate-800 opacity-80'
+                }`;
+
+                card.innerHTML = `
+                    <span class="text-xs font-bold text-slate-300 truncate w-full text-center mb-1">${player.name}</span>
+                    <div class="flex items-center gap-1">
+                        <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
+                        <span class="text-sm font-black text-amber-400">${player.coins}</span>
+                    </div>
+                    ${isActive ? '<span class="mt-1 text-[9px] uppercase font-extrabold text-amber-300 bg-amber-500/30 px-2 py-0.5 rounded-full">GILIRAN</span>' : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function startNextRound() {
+            playSound('click');
+            if (currentRound < totalRounds) {
+                currentRound++;
+                initRoundBoard();
+                document.getElementById('game-status').innerText = `✨ Ronde ${currentRound} Dimulai! Giliran ${players[currentPlayerIndex].name}. ✨`;
+                document.getElementById('game-status').className = "text-sm md:text-base text-amber-300 font-medium";
+            } else {
+                finishMatch();
+            }
+        }
+
+        function finishMatch() {
+            // Determine winner with most coins
+            let sortedPlayers = [...players].sort((a, b) => b.coins - a.coins);
+            let winner = sortedPlayers[0];
+
+            triggerConfetti();
+            playSound('jackpot');
+
+            document.getElementById('winner-name').innerText = winner.name;
+            document.getElementById('winner-score').innerText = `Total Hasil: ${winner.coins} Koin 🪙`;
+            document.getElementById('winner-modal').classList.remove('hidden');
+        }
+
+        function closeWinnerModal() {
+            document.getElementById('winner-modal').classList.add('hidden');
+        }
+
+        function revealAllEnvelopes() {
+            playSound('click');
+            currentDeck.forEach((prize, idx) => {
+                const resultEl = document.getElementById(`env-result-${idx}`);
+                const prizeTextEl = document.getElementById(`env-prize-text-${idx}`);
+                resultEl.classList.remove('opacity-0');
+                resultEl.classList.add('opacity-100');
+                prizeTextEl.innerText = prize.label;
+            });
+            document.getElementById('btn-reveal-all').disabled = true;
+        }
+
+        function addHistoryLog(playerName, prizeLabel, envelopeNum) {
+            const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            historyLogs.unshift({ player: playerName, prize: prizeLabel, num: envelopeNum, time: timeStr });
+            if (historyLogs.length > 6) historyLogs.pop();
+
+            const historyContainer = document.getElementById('history-list');
+            historyContainer.innerHTML = historyLogs.map(item => `
+                <div class="flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400"><strong class="text-amber-300">${item.player}</strong> (#${item.num}) - ${item.time}</span>
+                    <span class="font-bold ${item.prize.includes('ZONG') ? 'text-red-400' : 'text-emerald-400'}">${item.prize}</span>
+                </div>
+            `).join('');
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        window.onload = function() {
+            setPlayerCount(2);
+            setZongCount(2);
+            setTotalRounds(3);
+            startNewMatch();
+        };
+    </script>
+</body>
+</html># Game-pilih-amplop
